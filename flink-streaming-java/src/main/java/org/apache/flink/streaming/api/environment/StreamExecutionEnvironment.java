@@ -92,8 +92,11 @@ import java.util.List;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
+ * 每个流计算的运行环境
  * The StreamExecutionEnvironment is the context in which a streaming program is executed. A
+ * LocalStreamEnvironment 运行在当前虚拟机
  * {@link LocalStreamEnvironment} will cause execution in the current JVM, a
+ * RemoteStreamEnvironment 运行在远端
  * {@link RemoteStreamEnvironment} will cause execution on a remote setup.
  *
  * <p>The environment provides methods to control the job execution (such as setting the parallelism
@@ -108,40 +111,42 @@ public abstract class StreamExecutionEnvironment {
 	/** The default name to use for a streaming job if no other name has been specified. */
 	public static final String DEFAULT_JOB_NAME = "Flink Streaming Job";
 
-	/** The time characteristic that is used if none other is set. */
+	/** The time characteristic that is used if none other is set. 默认使用处理时间*/
 	private static final TimeCharacteristic DEFAULT_TIME_CHARACTERISTIC = TimeCharacteristic.ProcessingTime;
+	/** The time characteristic used by the data streams. */
+	private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
 
-	/** The default buffer timeout (max delay of records in the network stack). */
+	/** The default buffer timeout (max delay of records in the network stack). 默认网络缓存超时时间*/
 	private static final long DEFAULT_NETWORK_BUFFER_TIMEOUT = 100L;
+	private long bufferTimeout = DEFAULT_NETWORK_BUFFER_TIMEOUT;
 
 	/**
-	 * The environment of the context (local by default, cluster if invoked through command line).
+	 * The environment of the context (local by default, cluster if invoked through command line) 默认是local,如果通过命令行调用则是 cluster.
 	 */
 	private static StreamExecutionEnvironmentFactory contextEnvironmentFactory;
 
-	/** The default parallelism used when creating a local environment. */
+	/** The default parallelism used when creating a local environment. 默认的并行度:当前jvm可用cpu核数*/
 	private static int defaultLocalParallelism = Runtime.getRuntime().availableProcessors();
 
 	// ------------------------------------------------------------------------
 
-	/** The execution configuration for this environment. */
+	/** The execution configuration for this environment. 环境配置*/
 	private final ExecutionConfig config = new ExecutionConfig();
 
-	/** Settings that control the checkpointing behavior. */
+	/** Settings that control the checkpointing behavior. 检查点配置*/
 	private final CheckpointConfig checkpointCfg = new CheckpointConfig();
 
+	/** 重要:所有转换操作列表 */
 	protected final List<StreamTransformation<?>> transformations = new ArrayList<>();
 
-	private long bufferTimeout = DEFAULT_NETWORK_BUFFER_TIMEOUT;
-
+	/** 是否开启链执行*/
 	protected boolean isChainingEnabled = true;
 
-	/** The state backend used for storing k/v state and state snapshots. */
+	/** The state backend used for storing k/v state and state snapshots. 默认状态后端,用于存储kv类型的state和state快照*/
 	private StateBackend defaultStateBackend;
 
-	/** The time characteristic used by the data streams. */
-	private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
 
+	/**分布式缓存文件列表*/
 	protected final List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cacheFile = new ArrayList<>();
 
 
@@ -164,6 +169,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * 设置环境并行度,该操作覆盖默认的jvm可用cpu核心数,并且影响所有操作符
 	 * Sets the parallelism for operations executed through this environment.
 	 * Setting a parallelism of x here will cause all operators (such as map,
 	 * batchReduce) to run with x parallel instances. This method overrides the
@@ -181,6 +187,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * 0<设置程序的最大并行度<=(2 ^15-1)
 	 * Sets the maximum degree of parallelism defined for the program. The upper limit (inclusive)
 	 * is Short.MAX_VALUE.
 	 *
@@ -261,6 +268,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * 禁用链操作
 	 * Disables operator chaining for streaming operators. Operator chaining
 	 * allows non-shuffle operations to be co-located in the same thread fully
 	 * avoiding serialization and de-serialization.
@@ -298,6 +306,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * 启用定期检查点快照
 	 * Enables checkpointing for the streaming job. The distributed state of the streaming
 	 * dataflow will be periodically snapshotted. In case of a failure, the streaming
 	 * dataflow will be restarted from the latest completed checkpoint. This method selects
@@ -319,6 +328,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * 启用定期检查点快照 以及设置 语义
 	 * Enables checkpointing for the streaming job. The distributed state of the streaming
 	 * dataflow will be periodically snapshotted. In case of a failure, the streaming
 	 * dataflow will be restarted from the latest completed checkpoint.
@@ -344,6 +354,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * 启用定期检查点快照 以及设置 语义 和 是否强制删除检查点快照
 	 * Enables checkpointing for the streaming job. The distributed state of the streaming
 	 * dataflow will be periodically snapshotted. In case of a failure, the streaming
 	 * dataflow will be restarted from the latest completed checkpoint.
@@ -433,6 +444,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * 设置存储后端类型
 	 * Sets the state backend that describes how to store and checkpoint operator state. It defines
 	 * both which data structures hold state during execution (for example hash tables, RockDB,
 	 * or other data stores) as well as where checkpointed data will be persisted.
@@ -483,6 +495,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * 设置重启策略,用于excute graph
 	 * Sets the restart strategy configuration. The configuration specifies which restart strategy
 	 * will be used for the execution graph in case of a restart.
 	 *
@@ -504,6 +517,8 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * 设置重新执行失败任务的次数,0:不执行(相当于禁用容错); -1:使用flink配置文件中的值
+	 *
 	 * Sets the number of times that failed tasks are re-executed. A value of
 	 * zero effectively disables fault tolerance. A value of {@code -1}
 	 * indicates that the system default value (as defined in the configuration)
@@ -542,6 +557,7 @@ public abstract class StreamExecutionEnvironment {
 	// --------------------------------------------------------------------------------------------
 
 	/**
+	 * 在运行时,使用kryo序列化一个类型
 	 * Adds a new Kryo default serializer to the Runtime.
 	 *
 	 * <p>Note that the serializer instance must be serializable (as defined by
@@ -639,10 +655,10 @@ public abstract class StreamExecutionEnvironment {
 	@PublicEvolving
 	public void setStreamTimeCharacteristic(TimeCharacteristic characteristic) {
 		this.timeCharacteristic = Preconditions.checkNotNull(characteristic);
-		if (characteristic == TimeCharacteristic.ProcessingTime) {
+		if (characteristic == TimeCharacteristic.ProcessingTime) {//使用处理时间,则禁用自动间隔时间设置水印
 			getConfig().setAutoWatermarkInterval(0);
 		} else {
-			getConfig().setAutoWatermarkInterval(200);
+			getConfig().setAutoWatermarkInterval(200);//200毫秒设置一次
 		}
 	}
 
@@ -663,6 +679,7 @@ public abstract class StreamExecutionEnvironment {
 	// --------------------------------------------------------------------------------------------
 
 	/**
+	 * 通过起始值,结束值,创建一个简单的long类型datastream
 	 * Creates a new data stream that contains a sequence of numbers. This is a parallel source,
 	 * if you manually set the parallelism to {@code 1}
 	 * (using {@link org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator#setParallelism(int)})
@@ -682,6 +699,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * 通过元素数组创建简单的datastream
 	 * Creates a new data stream that contains the given elements. The elements must all be of the
 	 * same type, for example, all of the {@link String} or {@link Integer}.
 	 *
@@ -717,6 +735,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * 同上
 	 * Creates a new data set that contains the given elements. The framework will determine the type according to the
 	 * based type user supplied. The elements should be the same or be the subclass to the based type.
 	 * The sequence of elements must not be empty.
@@ -750,6 +769,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * 通过集合创建简单的datastream
 	 * Creates a data stream from the given non-empty collection. The type of the data stream is that of the
 	 * elements in the collection.
 	 *
@@ -1433,6 +1453,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * TODO 待细看
 	 * Ads a data source with a custom type information thus opening a
 	 * {@link DataStream}. Only in very special cases does the user need to
 	 * support type information. Otherwise use
@@ -1495,6 +1516,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * 触发程序执行
 	 * Triggers the program execution. The environment will execute all parts of
 	 * the program that have resulted in a "sink" operation. Sink operations are
 	 * for example printing results or forwarding them to a message queue.
@@ -1510,6 +1532,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * 触发程序执行
 	 * Triggers the program execution. The environment will execute all parts of
 	 * the program that have resulted in a "sink" operation. Sink operations are
 	 * for example printing results or forwarding them to a message queue.
@@ -1524,6 +1547,8 @@ public abstract class StreamExecutionEnvironment {
 	public abstract JobExecutionResult execute(String jobName) throws Exception;
 
 	/**
+	 * TODO 重点: 待细看
+	 * 将所有transformation转换为stream graph
 	 * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job.
 	 *
 	 * @return The streamgraph representing the transformations
@@ -1537,6 +1562,8 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * 将stream graph输出为json格式的执行计划;
+	 * 此方法在执行计划之前调用
 	 * Creates the plan with which the system will execute the program, and
 	 * returns it as a String using a JSON representation of the execution data
 	 * flow graph. Note that this needs to be called, before the plan is
@@ -1562,6 +1589,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * 添加操作符,记录到env的list<Transformation>列表中
 	 * Adds an operator to the list of operators that should be executed when calling
 	 * {@link #execute}.
 	 *
