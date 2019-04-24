@@ -106,9 +106,9 @@ public class TimeWindow extends Window {
 	@Override
 	public String toString() {
 		return "TimeWindow{" +
-				"start=" + start +
-				", end=" + end +
-				'}';
+			"start=" + start +
+			", end=" + end +
+			'}';
 	}
 
 	/**
@@ -215,15 +215,15 @@ public class TimeWindow extends Window {
 		Tuple2<TimeWindow, Set<TimeWindow>> currentMerge = null;
 
 		for (TimeWindow candidate: sortedWindows) {
-			if (currentMerge == null) {
+			if (currentMerge == null) {//列表为空,为第一个元素初始化一个窗口列表
 				currentMerge = new Tuple2<>();
 				currentMerge.f0 = candidate;
 				currentMerge.f1 = new HashSet<>();
 				currentMerge.f1.add(candidate);
-			} else if (currentMerge.f0.intersects(candidate)) {
-				currentMerge.f0 = currentMerge.f0.cover(candidate);
-				currentMerge.f1.add(candidate);
-			} else {
+			} else if (currentMerge.f0.intersects(candidate)) {//窗口相交
+				currentMerge.f0 = currentMerge.f0.cover(candidate);//合并窗口时间,取两个窗口的最小start和最大end
+				currentMerge.f1.add(candidate);//在合并的窗口列表中保留所有被合并的窗口
+			} else {//窗口之间断开了不相交,为新的不相交初始化一个窗口列表
 				merged.add(currentMerge);
 				currentMerge = new Tuple2<>();
 				currentMerge.f0 = candidate;
@@ -232,11 +232,11 @@ public class TimeWindow extends Window {
 			}
 		}
 
-		if (currentMerge != null) {
+		if (currentMerge != null) {//窗口加入到列表中
 			merged.add(currentMerge);
 		}
 
-		for (Tuple2<TimeWindow, Set<TimeWindow>> m: merged) {
+		for (Tuple2<TimeWindow, Set<TimeWindow>> m: merged) {//递归再次合并窗口
 			if (m.f1.size() > 1) {
 				c.merge(m.f1, m.f0);
 			}
@@ -244,6 +244,7 @@ public class TimeWindow extends Window {
 	}
 
 	/**
+	 * 计算时间窗口开始的时间戳
 	 * Method to get the window start for a timestamp.
 	 *
 	 * @param timestamp epoch millisecond to get the window start.

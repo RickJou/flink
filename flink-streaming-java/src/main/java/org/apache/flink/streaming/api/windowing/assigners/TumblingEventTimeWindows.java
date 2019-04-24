@@ -45,9 +45,9 @@ import java.util.Collections;
 @PublicEvolving
 public class TumblingEventTimeWindows extends WindowAssigner<Object, TimeWindow> {
 	private static final long serialVersionUID = 1L;
-
+	//窗口大小
 	private final long size;
-
+	//窗口偏移量
 	private final long offset;
 
 	protected TumblingEventTimeWindows(long size, long offset) {
@@ -64,16 +64,17 @@ public class TumblingEventTimeWindows extends WindowAssigner<Object, TimeWindow>
 		if (timestamp > Long.MIN_VALUE) {
 			// Long.MIN_VALUE is currently assigned when no timestamp is present
 			long start = TimeWindow.getWindowStartWithOffset(timestamp, offset, size);
-			return Collections.singletonList(new TimeWindow(start, start + size));
+			return Collections.singletonList(new TimeWindow(start, start + size));//通过窗口的开始时间和结束时间注册窗口
 		} else {
 			throw new RuntimeException("Record has Long.MIN_VALUE timestamp (= no timestamp marker). " +
-					"Is the time characteristic set to 'ProcessingTime', or did you forget to call " +
-					"'DataStream.assignTimestampsAndWatermarks(...)'?");
+				"Is the time characteristic set to 'ProcessingTime', or did you forget to call " +
+				"'DataStream.assignTimestampsAndWatermarks(...)'?");
 		}
 	}
 
 	@Override
 	public Trigger<Object, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
+		//默认触发器
 		return EventTimeTrigger.create();
 	}
 
