@@ -1453,7 +1453,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * TODO 待细看
+	 * 添加dataStreamSource
 	 * Ads a data source with a custom type information thus opening a
 	 * {@link DataStream}. Only in very special cases does the user need to
 	 * support type information. Otherwise use
@@ -1486,20 +1486,28 @@ public abstract class StreamExecutionEnvironment {
 			}
 		}
 
+		//并行Source?
 		boolean isParallel = function instanceof ParallelSourceFunction;
-
+		//序列化对象
 		clean(function);
 		StreamSource<OUT, ?> sourceOperator;
-		if (function instanceof StoppableFunction) {
+
+		//StoppableStreamSource提供了一个stop方法,用于标记source状态和停止新数据写入
+		if (function instanceof StoppableFunction) {//可停止的源?
+			//初始化stoppable类型的StreamSource
 			sourceOperator = new StoppableStreamSource<>(cast2StoppableSourceFunction(function));
 		} else {
+			//初始化没有实现stoppable的StreamSource
 			sourceOperator = new StreamSource<>(function);
 		}
-
+		//TODO 返回datastreamSource对象
 		return new DataStreamSource<>(this, typeInfo, sourceOperator, isParallel, sourceName);
 	}
 
 	/**
+	 * 此种情况下,相当于Source实现了多种类型的Function接口,此方法让其返回StoppableFunction类型
+	 * 将源函数转换为实现StoppableFunction的SourceFunction。
+	 *
 	 * Casts the source function into a SourceFunction implementing the StoppableFunction.
 	 *
 	 * <p>This method should only be used if the source function was checked to implement the
@@ -1516,7 +1524,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * 触发程序执行
+	 * TODO 触发程序执行
 	 * Triggers the program execution. The environment will execute all parts of
 	 * the program that have resulted in a "sink" operation. Sink operations are
 	 * for example printing results or forwarding them to a message queue.
@@ -1581,9 +1589,12 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	@Internal
 	public <F> F clean(F f) {
+		//默认配置是:true
 		if (getConfig().isClosureCleanerEnabled()) {
+			//清除非静态内部类闭包,使得对象可以序列化(java默认不行)
 			ClosureCleaner.clean(f, true);
 		}
+		//序列化闭包对象
 		ClosureCleaner.ensureSerializable(f);
 		return f;
 	}
@@ -1610,6 +1621,8 @@ public abstract class StreamExecutionEnvironment {
 	// --------------------------------------------------------------------------------------------
 
 	/**
+	 *  TODO 创建运行环境
+	 *
 	 * Creates an execution environment that represents the context in which the
 	 * program is currently executed. If the program is invoked standalone, this
 	 * method returns a local execution environment, as returned by
@@ -1764,6 +1777,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * 创建远程流环境,将发送部分程序到集群中运行,注意:集群必须可以访问程序使用的所有文件路径.
 	 * Creates a {@link RemoteStreamEnvironment}. The remote environment sends
 	 * (parts of) the program to a cluster for execution. Note that all file
 	 * paths used in the program must be accessible from the cluster. The
@@ -1801,6 +1815,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * 设置默认local并行度
 	 * Sets the default parallelism that will be used for the local execution
 	 * environment created by {@link #createLocalEnvironment()}.
 	 *
@@ -1819,6 +1834,7 @@ public abstract class StreamExecutionEnvironment {
 		contextEnvironmentFactory = ctx;
 	}
 
+	/** 重置运行环境为null*/
 	protected static void resetContextEnvironment() {
 		contextEnvironmentFactory = null;
 	}
@@ -1842,6 +1858,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * 注册分布式缓存文件
 	 * Registers a file at the distributed cache under the given name. The file will be accessible
 	 * from any user-defined function in the (distributed) runtime under a local path. Files
 	 * may be local files (which will be distributed via BlobServer), or files in a distributed file system.
@@ -1852,9 +1869,9 @@ public abstract class StreamExecutionEnvironment {
 	 * {@link org.apache.flink.api.common.cache.DistributedCache} via
 	 * {@link org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()}.
 	 *
-	 * @param filePath The path of the file, as a URI (e.g. "file:///some/path" or "hdfs://host:port/and/path")
-	 * @param name The name under which the file is registered.
-	 * @param executable flag indicating whether the file should be executable
+	 * @param filePath The path of the file, as a URI (e.g. "file:///some/path" or "hdfs://host:port/and/path") 文件路径
+	 * @param name The name under which the file is registered. 文件注册名
+	 * @param executable flag indicating whether the file should be executable 文件是否可执行
 	 */
 	public void registerCachedFile(String filePath, String name, boolean executable) {
 		this.cacheFile.add(new Tuple2<>(name, new DistributedCache.DistributedCacheEntry(filePath, executable)));

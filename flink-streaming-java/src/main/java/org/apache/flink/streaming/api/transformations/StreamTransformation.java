@@ -52,6 +52,18 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * split/select data stream, partitioning.
  *
  * <p>The following graph of {@code StreamTransformations}:
+ *
+ *
+ *
+ * StreamTransformation表示创建DataStream的操作。 每个DataStream都有一个底层StreamTransformation，它是所述DataStream的起源。
+ * API操作（如DataStream.map（org.apache.flink.api.common.functions.MapFunction <T，R>））在下面创建一个StreamTransformation树。
+ * 当要执行流程序时，使用StreamGraphGenerator将此图表转换为StreamGraph。
+ *
+ * StreamTransformation不一定对应于运行时的物理操作。 有些操作只是逻辑概念。 例如，union，split / select数据流，分区。
+ *
+ * StreamTransformations的以下图表：
+ *
+ *
  * <pre>{@code
  *   Source              Source
  *      +                   +
@@ -79,6 +91,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *              Sink
  * }</pre>
  *
+ *
+ * 将在运行时生成此操作图：
+ *
  * <p>Would result in this graph of operations at runtime:
  * <pre>{@code
  *  Source              Source
@@ -91,6 +106,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *              v
  *             Sink
  * }</pre>
+ *
+ *
+ * 有关partitioning, union, split/select的信息最终会在将源连接到Map操作的edges中进行编码。
  *
  * <p>The information about partitioning, union, split/select end up being encoded in the edges
  * that connect the sources to the map operation.
@@ -364,13 +382,17 @@ public abstract class StreamTransformation<T> {
 	}
 
 	/**
+	 * 现在这是一个内部未记录的功能。 目前尚不清楚这是否会得到长期支持和稳定。
 	 * <b>NOTE:</b> This is an internal undocumented feature for now. It is not
 	 * clear whether this will be supported and stable in the long term.
 	 *
+	 * 获取标识共址组的键。
 	 * <p>Gets the key that identifies the co-location group.
+	 * 具有相同协同定位密钥的操作符将其相应的子任务放置在调度程序的同一个槽中。
 	 * Operators with the same co-location key will have their corresponding subtasks
 	 * placed into the same slot by the scheduler.
 	 *
+	 * 如果这是null（这是默认值），则表示没有共址约束。
 	 * <p>If this is null (which is the default), it means there is no co-location constraint.
 	 */
 	@Nullable

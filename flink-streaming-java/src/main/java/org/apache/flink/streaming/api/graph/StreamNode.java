@@ -47,8 +47,7 @@ public class StreamNode implements Serializable {
 	private final int id;
 	private Integer parallelism = null;
 	/**
-	 * Maximum parallelism for this stream node. The maximum parallelism is the upper limit for
-	 * dynamic scaling and the number of key groups used for partitioned state.
+	 * 此流节点的最大并行度。 最大并行度是动态缩放的上限和用于分区状态的密钥组的数量。
 	 */
 	private int maxParallelism;
 	private ResourceSpec minResources = ResourceSpec.DEFAULT;
@@ -70,7 +69,7 @@ public class StreamNode implements Serializable {
 	private List<StreamEdge> inEdges = new ArrayList<StreamEdge>();
 	private List<StreamEdge> outEdges = new ArrayList<StreamEdge>();
 
-	private final Class<? extends AbstractInvokable> jobVertexClass;
+	private final Class<? extends AbstractInvokable> jobVertexClass;//节点类型,相当于task类型
 
 	private InputFormat<?, ?> inputFormat;
 

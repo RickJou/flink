@@ -195,18 +195,19 @@ public class StreamGraph extends StreamingPlan {
 			TypeInformation<OUT> outTypeInfo,
 			String operatorName) {
 
-		if (operatorObject instanceof StoppableStreamSource) {
+		if (operatorObject instanceof StoppableStreamSource) {//能够stop的streamSource
 			addNode(vertexID, slotSharingGroup, coLocationGroup, StoppableSourceStreamTask.class, operatorObject, operatorName);
-		} else if (operatorObject instanceof StreamSource) {
+		} else if (operatorObject instanceof StreamSource) {//普通的streamSource
 			addNode(vertexID, slotSharingGroup, coLocationGroup, SourceStreamTask.class, operatorObject, operatorName);
-		} else {
+		} else {//其他的节点
 			addNode(vertexID, slotSharingGroup, coLocationGroup, OneInputStreamTask.class, operatorObject, operatorName);
 		}
 
+		//输入类型序列化器
 		TypeSerializer<IN> inSerializer = inTypeInfo != null && !(inTypeInfo instanceof MissingTypeInfo) ? inTypeInfo.createSerializer(executionConfig) : null;
-
+		//输出类型序列化器
 		TypeSerializer<OUT> outSerializer = outTypeInfo != null && !(outTypeInfo instanceof MissingTypeInfo) ? outTypeInfo.createSerializer(executionConfig) : null;
-
+		//设置node输入输出序列化器
 		setSerializers(vertexID, inSerializer, null, outSerializer);
 
 		if (operatorObject instanceof OutputTypeConfigurable && outTypeInfo != null) {
@@ -258,7 +259,7 @@ public class StreamGraph extends StreamingPlan {
 	protected StreamNode addNode(Integer vertexID,
 		String slotSharingGroup,
 		@Nullable String coLocationGroup,
-		Class<? extends AbstractInvokable> vertexClass,
+		Class<? extends AbstractInvokable> vertexClass,//节点类型:StoppableSourceStreamTask/SourceStreamTask/${othorType}Task
 		StreamOperator<?> operatorObject,
 		String operatorName) {
 

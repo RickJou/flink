@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
+ * 这代表了一个Source。 这实际上并没有转换任何东西，因为它没有输入，但它是任何拓扑的根
  * This represents a Source. This does not actually transform anything since it has no inputs but
  * it is the root {@code StreamTransformation} of any topology.
  *
@@ -38,6 +39,7 @@ public class SourceTransformation<T> extends StreamTransformation<T> {
 	private final StreamSource<T, ?> operator;
 
 	/**
+	 * 创建一个新的sourceTransformation
 	 * Creates a new {@code SourceTransformation} from the given operator.
 	 *
 	 * @param name The name of the {@code SourceTransformation}, this will be shown in Visualizations and the Log
@@ -50,7 +52,9 @@ public class SourceTransformation<T> extends StreamTransformation<T> {
 			StreamSource<T, ?> operator,
 			TypeInformation<T> outputType,
 			int parallelism) {
+		//实际上是创建了一个streamTransformation
 		super(name, outputType, parallelism);
+		//绑定source操作符
 		this.operator = operator;
 	}
 

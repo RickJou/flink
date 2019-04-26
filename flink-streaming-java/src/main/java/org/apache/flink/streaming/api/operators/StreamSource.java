@@ -50,7 +50,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 
 	public StreamSource(SRC sourceFunction) {
 		super(sourceFunction);
-
+		//SourceFunction链接策略为Head,因为它是第一个操作符,所以不需要链接之前的操作符
 		this.chainingStrategy = ChainingStrategy.HEAD;
 	}
 

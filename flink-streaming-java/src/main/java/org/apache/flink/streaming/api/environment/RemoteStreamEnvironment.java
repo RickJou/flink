@@ -109,6 +109,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	}
 
 	/**
+	 * 创建一个新的远程流环境,向指定的 jobmanager 的地址和端口扫描.
 	 * Creates a new RemoteStreamEnvironment that points to the master
 	 * (JobManager) described by the given host name and port.
 	 *

@@ -23,8 +23,8 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 /**
  * {@link StoppableStreamSource} takes a {@link SourceFunction} that implements {@link StoppableFunction}.
  *
- * @param <OUT> Type of the output elements
- * @param <SRC> Type of the source function which has to be stoppable
+ * @param <OUT> Type of the output elements 输出元素的类型
+ * @param <SRC> Type of the source function which has to be stoppable 源函数的类型必须是stoppable的
  */
 public class StoppableStreamSource<OUT, SRC extends SourceFunction<OUT> & StoppableFunction>
 	extends StreamSource<OUT, SRC> {
@@ -42,6 +42,8 @@ public class StoppableStreamSource<OUT, SRC extends SourceFunction<OUT> & Stoppa
 	}
 
 	/**
+	 * 标记Source状态为canceledOrStopped ,表示Source不在提供新的输入数据.调用stop方法.
+	 *
 	 * Marks the source a stopped and calls {@link StoppableFunction#stop()} on the user function.
 	 */
 	public void stop() {

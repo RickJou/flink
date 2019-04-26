@@ -125,6 +125,7 @@ public class StreamGraphGenerator {
 	}
 
 	/**
+	 * 遍历list transformations开始递归transformation绘制streamGraph
 	 * This starts the actual transformation, beginning from the sinks.
 	 */
 	private StreamGraph generateInternal(List<StreamTransformation<?>> transformations) {
@@ -135,7 +136,11 @@ public class StreamGraphGenerator {
 	}
 
 	/**
+	 * 对具体的一个transformation进行转换，转换成 StreamGraph 中的 StreamNode 和 StreamEdge
+	 * 返回值为该transform的id集合，通常大小为1个（除FeedbackTransformation）
 	 * Transforms one {@code StreamTransformation}.
+	 *
+	 * 如果已经转换了,则直接返回转换好的.否则 进行转换.
 	 *
 	 * <p>This checks whether we already transformed it and exits early in that case. If not it
 	 * delegates to one of the transformation specific methods.
@@ -148,7 +153,7 @@ public class StreamGraphGenerator {
 
 		LOG.debug("Transforming " + transform);
 
-		if (transform.getMaxParallelism() <= 0) {
+		if (transform.getMaxParallelism() <= 0) {//如果transformation没有设置最大并行度,则使用env中设置的最大并行度
 
 			// if the max parallelism hasn't been set, then first use the job wide max parallelism
 			// from theExecutionConfig.
@@ -158,31 +163,33 @@ public class StreamGraphGenerator {
 			}
 		}
 
-		// call at least once to trigger exceptions about MissingTypeInfo
+		// 至少调用一次以触发有关MissingTypeInfo的异常
 		transform.getOutputType();
 
 		Collection<Integer> transformedIds;
-		if (transform instanceof OneInputTransformation<?, ?>) {
+		if (transform instanceof OneInputTransformation<?, ?>) {//一个上游输入的transformation
 			transformedIds = transformOneInputTransform((OneInputTransformation<?, ?>) transform);
-		} else if (transform instanceof TwoInputTransformation<?, ?, ?>) {
+		} else if (transform instanceof TwoInputTransformation<?, ?, ?>) {//两个上游输入的transformation
 			transformedIds = transformTwoInputTransform((TwoInputTransformation<?, ?, ?>) transform);
-		} else if (transform instanceof SourceTransformation<?>) {
+		} else if (transform instanceof SourceTransformation<?>) {//输入
 			transformedIds = transformSource((SourceTransformation<?>) transform);
-		} else if (transform instanceof SinkTransformation<?>) {
+		} else if (transform instanceof SinkTransformation<?>) {//输出
 			transformedIds = transformSink((SinkTransformation<?>) transform);
-		} else if (transform instanceof UnionTransformation<?>) {
+
+
+		} else if (transform instanceof UnionTransformation<?>) {//非实际转换操作符-union
 			transformedIds = transformUnion((UnionTransformation<?>) transform);
-		} else if (transform instanceof SplitTransformation<?>) {
+		} else if (transform instanceof SplitTransformation<?>) {//非实际转换操作符-split
 			transformedIds = transformSplit((SplitTransformation<?>) transform);
-		} else if (transform instanceof SelectTransformation<?>) {
+		} else if (transform instanceof SelectTransformation<?>) {//非实际转换操作符-select
 			transformedIds = transformSelect((SelectTransformation<?>) transform);
-		} else if (transform instanceof FeedbackTransformation<?>) {
+		} else if (transform instanceof FeedbackTransformation<?>) {//非实际转换操作符-feedback
 			transformedIds = transformFeedback((FeedbackTransformation<?>) transform);
-		} else if (transform instanceof CoFeedbackTransformation<?>) {
+		} else if (transform instanceof CoFeedbackTransformation<?>) {//非实际转换操作符-Co feedback
 			transformedIds = transformCoFeedback((CoFeedbackTransformation<?>) transform);
-		} else if (transform instanceof PartitionTransformation<?>) {
+		} else if (transform instanceof PartitionTransformation<?>) {//非实际转换操作符-parttion
 			transformedIds = transformPartition((PartitionTransformation<?>) transform);
-		} else if (transform instanceof SideOutputTransformation<?>) {
+		} else if (transform instanceof SideOutputTransformation<?>) {//非实际转换操作符side
 			transformedIds = transformSideOutput((SideOutputTransformation<?>) transform);
 		} else {
 			throw new IllegalStateException("Unknown transformation: " + transform);
@@ -212,12 +219,14 @@ public class StreamGraphGenerator {
 	}
 
 	/**
+	 * union没有创建节点,只返回需要union的transformation id
 	 * Transforms a {@code UnionTransformation}.
-	 *
+	 * 这很简单，我们只需转换输入并返回列表中的所有ID，以便下游操作可以连接到所有上游节点
 	 * <p>This is easy, we only have to transform the inputs and return all the IDs in a list so
 	 * that downstream operations can connect to all upstream nodes.
 	 */
 	private <T> Collection<Integer> transformUnion(UnionTransformation<T> union) {
+		//获得需要连接的transformation node
 		List<StreamTransformation<T>> inputs = union.getInputs();
 		List<Integer> resultIds = new ArrayList<>();
 
@@ -477,7 +486,7 @@ public class StreamGraphGenerator {
 				null,
 				source.getOutputType(),
 				"Source: " + source.getName());
-		if (source.getOperator().getUserFunction() instanceof InputFormatSourceFunction) {
+		if (source.getOperator().getUserFunction() instanceof InputFormatSourceFunction) {//输入格式化
 			InputFormatSourceFunction<T> fs = (InputFormatSourceFunction<T>) source.getOperator().getUserFunction();
 			streamGraph.setInputFormat(source.getId(), fs.getFormat());
 		}
@@ -524,36 +533,46 @@ public class StreamGraphGenerator {
 	/**
 	 * Transforms a {@code OneInputTransformation}.
 	 *
+	 * 递归地转换输入，在图中创建新的StreamNode并将上一个StreamNode的输入连接到这个新节点。
+	 *
 	 * <p>This recursively transforms the inputs, creates a new {@code StreamNode} in the graph and
 	 * wired the inputs to this new node.
 	 */
 	private <IN, OUT> Collection<Integer> transformOneInputTransform(OneInputTransformation<IN, OUT> transform) {
 
+		// 递归对该transform的直接上游transform进行转换，获得直接上游id集合
+		// 相当于将每个操作符的输入操作符先在StreamGraph中进行绘制node和edges,然后再 alreadyTransformed 进行标记,表示这个节点已经被graph过了
 		Collection<Integer> inputIds = transform(transform.getInput());
 
-		// the recursive call might have already transformed this
+		// 递归获取已经处理过该transform了
 		if (alreadyTransformed.containsKey(transform)) {
 			return alreadyTransformed.get(transform);
 		}
-
+		/**获得slot共享组名称,
+		 * 如果指定了slotSharingGroup则使用指定的名称,
+		 * 如果输入操作符有slotSharingGroup名称则使用输入操作符的slotSharingGroup名称,
+		 * 否则使用 "default" 作为slotSharingGroup名称*/
 		String slotSharingGroup = determineSlotSharingGroup(transform.getSlotSharingGroup(), inputIds);
 
-		streamGraph.addOperator(transform.getId(),
-				slotSharingGroup,
+		//在StreamGraph上添加node
+		streamGraph.addOperator(transform.getId(),//一个递增的id
+				slotSharingGroup,//组共享槽名称
 				transform.getCoLocationGroupKey(),
-				transform.getOperator(),
-				transform.getInputType(),
-				transform.getOutputType(),
-				transform.getName());
+				transform.getOperator(),//操作符
+				transform.getInputType(),//输入类型
+				transform.getOutputType(),//输出类型
+				transform.getName());//操作符名称
 
+		//设置node的stateKeySelector
 		if (transform.getStateKeySelector() != null) {
 			TypeSerializer<?> keySerializer = transform.getStateKeyType().createSerializer(env.getConfig());
 			streamGraph.setOneInputStateKey(transform.getId(), transform.getStateKeySelector(), keySerializer);
 		}
-
+		//设置node的并行度和最大并行度
 		streamGraph.setParallelism(transform.getId(), transform.getParallelism());
 		streamGraph.setMaxParallelism(transform.getId(), transform.getMaxParallelism());
 
+		//在StreamGraph上添加上游和本节点之间的edge
 		for (Integer inputId: inputIds) {
 			streamGraph.addEdge(inputId, transform.getId(), 0);
 		}
@@ -569,6 +588,7 @@ public class StreamGraphGenerator {
 	 */
 	private <IN1, IN2, OUT> Collection<Integer> transformTwoInputTransform(TwoInputTransformation<IN1, IN2, OUT> transform) {
 
+		//递归两个上游先进行装好
 		Collection<Integer> inputIds1 = transform(transform.getInput1());
 		Collection<Integer> inputIds2 = transform(transform.getInput2());
 
@@ -601,6 +621,7 @@ public class StreamGraphGenerator {
 		streamGraph.setParallelism(transform.getId(), transform.getParallelism());
 		streamGraph.setMaxParallelism(transform.getId(), transform.getMaxParallelism());
 
+		//设置第一个输入节点的edge
 		for (Integer inputId: inputIds1) {
 			streamGraph.addEdge(inputId,
 					transform.getId(),
@@ -608,6 +629,7 @@ public class StreamGraphGenerator {
 			);
 		}
 
+		//设置第二个输入节点的edge
 		for (Integer inputId: inputIds2) {
 			streamGraph.addEdge(inputId,
 					transform.getId(),
@@ -619,9 +641,11 @@ public class StreamGraphGenerator {
 	}
 
 	/**
+	 * 根据用户设置的插槽共享组和输入的插槽共享组，确定操作的插槽共享组。
 	 * Determines the slot sharing group for an operation based on the slot sharing group set by
 	 * the user and the slot sharing groups of the inputs.
 	 *
+	 * 如果用户指定了组名，则使用指定的组名。 如果此操作符的输操作符使用了指定的slotSharingGroup,则使用输入的操作符组名。 否则，使用"default"作为组名。
 	 * <p>If the user specifies a group name, this is taken as is. If nothing is specified and
 	 * the input operations all have the same group name then this name is taken. Otherwise the
 	 * default group is chosen.

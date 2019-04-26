@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 /**
+ * 表示类型提取失败的特殊类型信息。 它包含其他错误信息。
  * A special type information signifying that the type extraction failed. It contains
  * additional error information.
  */

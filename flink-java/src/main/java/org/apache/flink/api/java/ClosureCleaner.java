@@ -34,6 +34,8 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 
 /**
+ * 闭包清理器是一个实用程序，它试图截断非静态内部类（为内联转换函数创建）的闭包（封闭实例）。
+ * 这使得非静态内部类在许多情况下可序列化，其中Java的默认行为使得它们在没有充分理由的情况下不可序列化。
  * The closure cleaner is a utility that tries to truncate the closure (enclosing instance)
  * of non-static inner classes (created for inline transformation functions). That makes non-static
  * inner classes in many cases serializable, where Java's default behavior renders them non-serializable
@@ -45,6 +47,7 @@ public class ClosureCleaner {
 	private static final Logger LOG = LoggerFactory.getLogger(ClosureCleaner.class);
 
 	/**
+	 * 如果对象是非静态内部类，则尝试清除给定对象的闭包。
 	 * Tries to clean the closure of the given object, if the object is a non-static inner
 	 * class.
 	 *
