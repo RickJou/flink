@@ -187,13 +187,13 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	public <IN, OUT> void addOperator(
-			Integer vertexID,
-			String slotSharingGroup,
-			@Nullable String coLocationGroup,
-			StreamOperator<OUT> operatorObject,
-			TypeInformation<IN> inTypeInfo,
-			TypeInformation<OUT> outTypeInfo,
-			String operatorName) {
+			Integer vertexID,//算子按顺序生成的id
+			String slotSharingGroup,//没有指定则是默认的"default"
+			@Nullable String coLocationGroup,//null
+			StreamOperator<OUT> operatorObject,//流操作符
+			TypeInformation<IN> inTypeInfo,//流操作输入类型
+			TypeInformation<OUT> outTypeInfo,//流操作输出类型
+			String operatorName) {//操作名称
 
 		if (operatorObject instanceof StoppableStreamSource) {//能够stop的streamSource
 			addNode(vertexID, slotSharingGroup, coLocationGroup, StoppableSourceStreamTask.class, operatorObject, operatorName);

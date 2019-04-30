@@ -1500,7 +1500,6 @@ public abstract class StreamExecutionEnvironment {
 			//初始化没有实现stoppable的StreamSource
 			sourceOperator = new StreamSource<>(function);
 		}
-		//TODO 返回datastreamSource对象
 		return new DataStreamSource<>(this, typeInfo, sourceOperator, isParallel, sourceName);
 	}
 
@@ -1555,7 +1554,7 @@ public abstract class StreamExecutionEnvironment {
 	public abstract JobExecutionResult execute(String jobName) throws Exception;
 
 	/**
-	 * TODO 重点: 待细看
+	 * 递归生成streamGraph的node和edge
 	 * 将所有transformation转换为stream graph
 	 * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job.
 	 *
@@ -1621,7 +1620,7 @@ public abstract class StreamExecutionEnvironment {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 *  TODO 创建运行环境
+	 *  创建运行环境
 	 *
 	 * Creates an execution environment that represents the context in which the
 	 * program is currently executed. If the program is invoked standalone, this
@@ -1640,6 +1639,7 @@ public abstract class StreamExecutionEnvironment {
 		// we currently need to intercept the data set environment and create a dependent stream env.
 		// this should be fixed once we rework the project dependencies
 
+		//首次创建Environment,并行度jvm可用cpu最大核心数,conf为默认参数
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		if (env instanceof ContextEnvironment) {
 			return new StreamContextEnvironment((ContextEnvironment) env);
